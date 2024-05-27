@@ -16,14 +16,16 @@ from multiprocessing.pool import ThreadPool
 from Project.Project_4.Youtube_Analysis_Services import data_extraction_enriching_process
 from Project.Project_4.EDA_Process import exploring_data_analysis_process
 from Project.Project_4.Sentiment_Analysis_Process import SentimentAnalysis
+from Project.Project_4.Sentiment_Analysis_Process import visualize_statistic_distribution_data_for_cache
 from Project.Project_4.In_depth_Sentiment_Analysis_Comments import YouTubeIndepthSentimentAnalysis
+from Project.Project_4.In_depth_Sentiment_Analysis_Comments import chart_sentiment_category_distribution_for_cache
+from Project.Project_4.In_depth_Sentiment_Analysis_Comments import display_word_cloud_by_sentiment_category_for_cache
 import time
 import plotly.express as px
 import plotly.figure_factory as ff
 import plotly.graph_objects as go
 
-
-load_dotenv("../.env",override=True)
+load_dotenv("../.env", override=True)
 pool = ThreadPool(processes=1)
 
 st.set_page_config(page_title="YouTube Data Sentiment Analysis", page_icon=":bar_chart:")
@@ -46,7 +48,7 @@ st.markdown(
     """, unsafe_allow_html=True)
 
 # Hero Section
-st.title("YouTube Data Sentiment Analysis")
+st.title("YouTube Data Sentiment Analysis with Cache Implementation")
 st.markdown(
     """
     **Objective**: The goal of this project is to integrate big data workflows, including data extraction, analysis, and visualization, using YouTube as a data source. You will explore various aspects of YouTube analytics, such as view trends, content topics, and viewer sentiment, to gain insights into content strategy and audience engagement.
@@ -61,21 +63,28 @@ if "youtube_channel" not in st.session_state or "df" not in st.session_state or 
 input_channel = st.text_input("Please enter the YouTube channel name: ")
 submit_youtube_analysis = st.button("Start Analysis YouTube Channel ...")
 
+@st.cache_data(ttl=3600)  # Cache the data for 1 hour
+def extract_and_enrich_data(channel):
+    return data_extraction_enriching_process(channel)
+
+@st.cache_resource(ttl=3600)  # Cache the sentiment analysis process for 1 hour
+def perform_sentiment_analysis(df):
+    sentiment_analysis = SentimentAnalysis(df)
+    return sentiment_analysis.data_aggregation_and_summary_statistics(df)
+
+@st.cache_resource(ttl=3600)  # Cache the in-depth sentiment analysis for 1 hour
+def indepth_sentiment_analysis(df_sentiment, count):
+    Indepth_sentiment_analysis_ = YouTubeIndepthSentimentAnalysis(df_sentiment, count)
+    return Indepth_sentiment_analysis_.analyze_sentiment_video_with_maximum_comment_count()
+
 if submit_youtube_analysis:
     # Store the channel name in the session state
     st.session_state.youtube_channel = "@" + input_channel
     st.write(f"Analyzing data for {st.session_state.youtube_channel}...")
-    # Make another thread to process the data and collect the results
-    async_result = pool.apply_async(data_extraction_enriching_process,args = (st.session_state.youtube_channel,))
-    bar = st.progress(0)
-    per = PROCESS_TIME / 100
-    for i in range(100):
-        time.sleep(per)
-        bar.progress(i + 1)
-    df = async_result.get()
 
+    # Data extraction and enriching process
+    df = extract_and_enrich_data(st.session_state.youtube_channel)
     st.write(df)
-    #st.write(df.description())
 
     # EDA SECTION
     st.markdown(
@@ -92,7 +101,6 @@ if submit_youtube_analysis:
 
         **c)** Deliverable: A time-series plot and analysis of publishing patterns.
     """, unsafe_allow_html=True)
-    # st.write(df.columns)
     df_sort_by_time = df.copy()
     df_sort_by_time['published'] = pd.to_datetime(df_sort_by_time['published'], utc=True)
     df_sort_by_time = df_sort_by_time.sort_values(by='published')
@@ -121,17 +129,9 @@ if submit_youtube_analysis:
         **b)** Deliverable: A pie chart showing the sentiment distribution and an analysis of content strategy
         or viewer engagement.
     """)
-
-    sentiment_analysis = SentimentAnalysis(df)
-    async_result_sentiment = pool.apply_async(sentiment_analysis.data_aggregation_and_summary_statistics, args=(df,))
-    bar = st.progress(0)
-    per = PROCESS_TIME_FIVE_SEC / 100
-    for i in range(100):
-        time.sleep(per)
-        bar.progress(i + 1)
-    df_sentiment = async_result_sentiment.get()
+    df_sentiment = perform_sentiment_analysis(df)
     st.write(df_sentiment.head(10))
-    sentiment_analysis.visualize_statistic_distribution_data()
+    visualize_statistic_distribution_data_for_cache(df_sentiment)
 
     # In-depth Sentiment Analysis of Comments
     st.markdown("""
@@ -152,30 +152,9 @@ if submit_youtube_analysis:
         - comprehensive insights for each analysis step.
     """)
 
-    number_of_indept_video = st.number_input("Enter the number of videos to display", min_value=5, step=1, value="min")
+    number_of_indept_video = st.number_input("Enter the number of videos to display", min_value=5, step=1, value=st.session_state.number_of_indept_video)
     st.session_state.number_of_indept_video = number_of_indept_video
-    Indepth_sentiment_analysis = YouTubeIndepthSentimentAnalysis(df_sentiment,st.session_state.number_of_indept_video)
-    async_result_sentiment_indepth = pool.apply_async(Indepth_sentiment_analysis.analyze_sentiment_video_with_maximum_comment_count,)
-    bar = st.progress(0)
-    per = PROCESS_TIME_FIVE_SEC / 100
-    for i in range(100):
-        time.sleep(per)
-        bar.progress(i + 1)
-    df_sentiment_indepth = async_result_sentiment_indepth.get()
-    Indepth_sentiment_analysis.chart_sentiment_category_distribution()
-    Indepth_sentiment_analysis.display_word_cloud_by_sentiment_category()
-    #sentiment_analysis.visualize_statistic_distribution_data()
-    
-    #df_sum_by_month = df_sort_by_time.groupby(df_sort_by_time.published.dt.to_period("M")).size().reset_index(name="count")
-    #df_sum_by_month_year_viewcounts = df_sort_by_time.groupby([df_sort_by_time.published.dt.to_period("M"), df_sort_by_time.published.dt.year]).agg({"views_count": "sum"}).reset_index().rename(columns={'published': 'period_published'})
-    # fig = px.line(df, x=df_sort_by_time.published, y=df_sort_by_time.views_count, hover_data={"published": "|%B %d, %Y"}, title=st.session_state.youtube_channel)
-    # fig.update_xaxes(dtick="M1", tickformat="%b\n%Y")
-    # st.plotly_chart(fig)
-    #st.write(df_sum_by_month)
-    #st.write(df_sum_by_month_year_viewcounts)
-    
+    df_sentiment_indepth = indepth_sentiment_analysis(df_sentiment, st.session_state.number_of_indept_video)
+    chart_sentiment_category_distribution_for_cache(df_sentiment_indepth)
+    display_word_cloud_by_sentiment_category_for_cache(df_sentiment_indepth)
 
-
-
-
-    

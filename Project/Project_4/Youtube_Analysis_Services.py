@@ -4,10 +4,16 @@ import requests
 import pandas as pd
 import numpy as np
 from googleapiclient.discovery import build
+from dotenv import load_dotenv
+import os
+import streamlit as st
 
-url_sample = "https://www.youtube.com/"
-API_KEY___ = 'AIzaSyDJYDUz82ALvQlNSCVJaRvWnTYKHBg3HzU'
+load_dotenv(override=True)
 
+url_sample = os.getenv("URL_SAMPLE_YOUTUBE")
+API_KEY___ = os.getenv("API_KEY___")
+
+@st.cache_data
 def data_extraction_enriching_process(channel_name, API_key = API_KEY___):
     """
     Performs the process of extracting data from a YouTube channel, creates a DataFrame, and processes the data.
