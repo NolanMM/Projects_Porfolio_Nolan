@@ -8,7 +8,7 @@ from googleapiclient.discovery import build
 url_sample = "https://www.youtube.com/"
 API_KEY___ = 'AIzaSyDJYDUz82ALvQlNSCVJaRvWnTYKHBg3HzU'
 
-def data_extraction_enriching_process(channel_name, df, API_key = API_KEY___):
+def data_extraction_enriching_process(channel_name, API_key = API_KEY___):
     """
     Performs the process of extracting data from a YouTube channel, creates a DataFrame, and processes the data.
 
@@ -45,7 +45,6 @@ def data_extraction_enriching_process(channel_name, df, API_key = API_KEY___):
     df['publish_year'] = df['published'].dt.year
     df['publish_hour'] = df['published'].dt.hour
     df['publish_period'] = df['publish_hour'].apply(lambda x: 'AM' if x < 12 else 'PM')
-
     return df
 
 class Youtube_Process_Module:
