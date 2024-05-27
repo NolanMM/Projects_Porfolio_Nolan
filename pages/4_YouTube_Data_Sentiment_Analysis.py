@@ -46,7 +46,7 @@ st.markdown(
     """, unsafe_allow_html=True)
 
 # Hero Section
-st.title("YouTube Data Sentiment Analysis")
+st.title("YouTube Data Sentiment Analysis - NolanM")
 st.markdown(
     """
     **Objective**: The goal of this project is to integrate big data workflows, including data extraction, analysis, and visualization, using YouTube as a data source. You will explore various aspects of YouTube analytics, such as view trends, content topics, and viewer sentiment, to gain insights into content strategy and audience engagement.
@@ -114,7 +114,7 @@ if submit_youtube_analysis:
 
     # Sentiment Analysis
     st.markdown("""
-        ## 4. Sentiment Analysis of Video Titles
+        ## Sentiment Analysis of Video Titles
         **a)** Perform sentiment analysis on video titles using NLP TextBlob Python Library to categorize
         them into Positive, Neutral, and Negative.
 
@@ -135,7 +135,7 @@ if submit_youtube_analysis:
 
     # In-depth Sentiment Analysis of Comments
     st.markdown("""
-        ## 5. In-depth Sentiment Analysis of Comments
+        ## In-depth Sentiment Analysis of Comments
         **a)** Identify the top 5 videos with the maximum comment count and display them.
 
         **b)** Select the video with the maximum comment count and perform detailed sentiment analysis
@@ -164,15 +164,6 @@ if submit_youtube_analysis:
     df_sentiment_indepth = async_result_sentiment_indepth.get()
     Indepth_sentiment_analysis.chart_sentiment_category_distribution()
     Indepth_sentiment_analysis.display_word_cloud_by_sentiment_category()
-    #sentiment_analysis.visualize_statistic_distribution_data()
-    
-    #df_sum_by_month = df_sort_by_time.groupby(df_sort_by_time.published.dt.to_period("M")).size().reset_index(name="count")
-    #df_sum_by_month_year_viewcounts = df_sort_by_time.groupby([df_sort_by_time.published.dt.to_period("M"), df_sort_by_time.published.dt.year]).agg({"views_count": "sum"}).reset_index().rename(columns={'published': 'period_published'})
-    # fig = px.line(df, x=df_sort_by_time.published, y=df_sort_by_time.views_count, hover_data={"published": "|%B %d, %Y"}, title=st.session_state.youtube_channel)
-    # fig.update_xaxes(dtick="M1", tickformat="%b\n%Y")
-    # st.plotly_chart(fig)
-    #st.write(df_sum_by_month)
-    #st.write(df_sum_by_month_year_viewcounts)
     
 
 

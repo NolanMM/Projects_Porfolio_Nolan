@@ -48,7 +48,7 @@ st.markdown(
     """, unsafe_allow_html=True)
 
 # Hero Section
-st.title("YouTube Data Sentiment Analysis with Cache Implementation")
+st.title("YouTube Data Sentiment Analysis with Cache Implementation - NolanM")
 st.markdown(
     """
     **Objective**: The goal of this project is to integrate big data workflows, including data extraction, analysis, and visualization, using YouTube as a data source. You will explore various aspects of YouTube analytics, such as view trends, content topics, and viewer sentiment, to gain insights into content strategy and audience engagement.
@@ -122,7 +122,7 @@ if submit_youtube_analysis:
 
     # Sentiment Analysis
     st.markdown("""
-        ## 4. Sentiment Analysis of Video Titles
+        ## Sentiment Analysis of Video Titles
         **a)** Perform sentiment analysis on video titles using NLP TextBlob Python Library to categorize
         them into Positive, Neutral, and Negative.
 
@@ -135,7 +135,7 @@ if submit_youtube_analysis:
 
     # In-depth Sentiment Analysis of Comments
     st.markdown("""
-        ## 5. In-depth Sentiment Analysis of Comments
+        ## In-depth Sentiment Analysis of Comments
         **a)** Identify the top 5 videos with the maximum comment count and display them.
 
         **b)** Select the video with the maximum comment count and perform detailed sentiment analysis
