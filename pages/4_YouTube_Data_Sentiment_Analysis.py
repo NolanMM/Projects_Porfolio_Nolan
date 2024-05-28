@@ -27,7 +27,7 @@ load_dotenv("../.env",override=True)
 pool = ThreadPool(processes=1)
 
 st.set_page_config(page_title="YouTube Data Sentiment Analysis", page_icon=":bar_chart:")
-
+st.sidebar.header("Project NolanM")
 current_dir = Path(__file__).parent if "__file__" in locals() else Path.cwd()
 css_file = "./styles/main.css"
 PROCESS_TIME = 15
@@ -152,8 +152,9 @@ if submit_youtube_analysis:
         - comprehensive insights for each analysis step.
     """)
 
-    number_of_indept_video = st.number_input("Enter the number of videos to display", min_value=5, step=1, value="min")
-    st.session_state.number_of_indept_video = number_of_indept_video
+    #number_of_indept_video = st.number_input("Enter the number of videos to display", min_value=5, step=1, value="min")
+    st.session_state.number_of_indept_video = 5
+    st.write(f"Analyzing the top {st.session_state.number_of_indept_video} videos with the maximum comment count...")
     Indepth_sentiment_analysis = YouTubeIndepthSentimentAnalysis(df_sentiment,st.session_state.number_of_indept_video)
     async_result_sentiment_indepth = pool.apply_async(Indepth_sentiment_analysis.analyze_sentiment_video_with_maximum_comment_count,)
     bar = st.progress(0)

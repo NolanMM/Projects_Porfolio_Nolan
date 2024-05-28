@@ -6,8 +6,6 @@ import yfinance as yf
 import streamlit as st
 from Project.Project_6.Training_Model import StockPricePredictor
 
-st.set_page_config(page_title="Stock Price Prediction LSTM", page_icon=":chart_with_upwards_trend:")
-
 css_file = "./styles/main.css"
 IMAGE_TRAINING_PROCESSING = "./assets/project_6/Training_Processing.png"
 IMAGE_MODEL_SUMMARY ="./assets/project_6/Model_Summary.png"
@@ -15,6 +13,8 @@ IMAGE_RESULT ="./assets/project_6/Results.png"
 MODEL_SAVE_PATH = "./Project/Project_6/keras_model.keras"
 SAMPLE_FILE = "./Project/Project_6/Training_Model_Sample_NolanM.py"
 
+st.set_page_config(page_title="Stock Price Prediction LSTM", page_icon=":chart_with_upwards_trend:")
+st.sidebar.header("Project NolanM")
 with open(css_file) as f:
     st.markdown("<style>{}</style>".format(f.read()), unsafe_allow_html=True)
 
@@ -250,10 +250,7 @@ st.markdown("---")
 st.markdown("""
     ## Conclusion
     - The LSTM model is trained on historical stock price data to predict future stock prices.
-    - The model is validated on a separate dataset to evaluate its performance.
-    - The predicted stock prices are compared with the actual prices to assess the model's accuracy.
-    - Further analysis can be done to optimize the model and improve its performance.
-    - The RMSE (Root Mean Squared Error) approximates around 0.00257015, indicating a good fit for the model.
+    - The RMSE (Root Mean Squared Error) approximates around 0.00257015, indicating a good fit for the model with input TSLA stock data in 14 years.
 """)
 
 st.markdown("---")

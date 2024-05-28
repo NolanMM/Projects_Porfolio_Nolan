@@ -29,7 +29,7 @@ load_dotenv("../.env", override=True)
 pool = ThreadPool(processes=1)
 
 st.set_page_config(page_title="YouTube Data Sentiment Analysis", page_icon=":bar_chart:")
-
+st.sidebar.header("Project NolanM")
 current_dir = Path(__file__).parent if "__file__" in locals() else Path.cwd()
 css_file = "./styles/main.css"
 PROCESS_TIME = 15
@@ -55,9 +55,13 @@ st.markdown(
     """
 )
 
-if "youtube_channel" not in st.session_state or "df" not in st.session_state or "number_of_indept_video" not in st.session_state:
+if "youtube_channel" not in st.session_state:
     st.session_state.youtube_channel = None
+
+if "df" not in st.session_state:
     st.session_state.df = None
+
+if "number_of_indept_video" not in st.session_state:
     st.number_of_indept_video = 5
 
 input_channel = st.text_input("Please enter the YouTube channel name: ")
@@ -152,9 +156,21 @@ if submit_youtube_analysis:
         - comprehensive insights for each analysis step.
     """)
 
-    number_of_indept_video = st.number_input("Enter the number of videos to display", min_value=5, step=1, value=st.session_state.number_of_indept_video)
-    st.session_state.number_of_indept_video = number_of_indept_video
-    df_sentiment_indepth = indepth_sentiment_analysis(df_sentiment, st.session_state.number_of_indept_video)
+    if 'number_of_indept_video_key' not in st.session_state:
+        st.session_state.number_of_indept_video_key = 5
+
+    # # Input widget for number of videos
+    # number_of_indept_video_ = st.number_input("Enter the number of videos to display", min_value=5, step=1)
+    # if number_of_indept_video_:
+    st.write(f"Number of videos to display: {st.session_state.number_of_indept_video_key}")
+    # Perform analysis and display results
+    df_sentiment_indepth = indepth_sentiment_analysis(df_sentiment, st.session_state.number_of_indept_video_key)
     chart_sentiment_category_distribution_for_cache(df_sentiment_indepth)
     display_word_cloud_by_sentiment_category_for_cache(df_sentiment_indepth)
+
+    # number_of_indept_video_ = st.number_input("Enter the number of videos to display", min_value=5, step=1, value=5)
+    # st.session_state.number_of_indept_video = number_of_indept_video_
+    # df_sentiment_indepth = indepth_sentiment_analysis(df_sentiment, st.session_state.number_of_indept_video)
+    # chart_sentiment_category_distribution_for_cache(df_sentiment_indepth)
+    # display_word_cloud_by_sentiment_category_for_cache(df_sentiment_indepth)
 

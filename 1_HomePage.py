@@ -32,7 +32,7 @@ PROJECTS = {
 }
 
 st.set_page_config(page_title=PAGE_TITLE, page_icon=PAGE_ICON)
-
+st.sidebar.header("Project NolanM")
 st.markdown(
     """
         <style>
