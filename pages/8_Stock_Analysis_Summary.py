@@ -171,7 +171,7 @@ if st.button("Analysis"):
         #     balance_sheet_.columns = list(balance_sheet_.iloc[0])
         #     st.write(balance_sheet_)
         #     # save balance sheet to csv
-        #     balance_sheet_.to_csv(f"./data/{text_input}_balance_sheet.csv", index=False)
+        #     balance_sheet_.to_csv(f"./data/Project_8/{text_input}_balance_sheet.csv", index=False)
 
         #     st.subheader("Income Statement")
         #     income_statement = fd.get_income_statement_annual(text_input)[0]
@@ -179,7 +179,7 @@ if st.button("Analysis"):
         #     income_statement_.columns = list(income_statement_.iloc[0])
         #     st.write(income_statement_)
         #     # save income statement to csv
-        #     income_statement_.to_csv(f"./data/{text_input}_income_statement.csv", index=False)
+        #     income_statement_.to_csv(f"./data/Project_8/{text_input}_income_statement.csv", index=False)
 
         #     st.subheader("Cash Flow")
         #     cash_flow = fd.get_cash_flow_annual(text_input)[0]
@@ -187,7 +187,7 @@ if st.button("Analysis"):
         #     cash_flow_.columns = list(cash_flow_.iloc[0])
         #     st.write(cash_flow_)
         #     # save cash flow to csv
-        #     cash_flow_.to_csv(f"./data/{text_input}_cash_flow.csv", index=False)
+        #     cash_flow_.to_csv(f"./data/Project_8/{text_input}_cash_flow.csv", index=False)
 
 
         with news:
