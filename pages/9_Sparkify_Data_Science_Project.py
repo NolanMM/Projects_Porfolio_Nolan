@@ -106,3 +106,21 @@ st.write("The first day in the dataset = df.select(min(to_timestamp(col('ts')/10
 st.write(start_date)
 st.write(f"The last day in the dataset = df.select(max(to_timestamp(col('ts')/1000)).alias('End time'))")
 st.write(end_date)
+
+distinct_pages = df.select("page").distinct()
+
+st.write("The dataset contains the following pages:")
+old_stdout = sys.stdout
+sys.stdout = mystdout = StringIO()
+distinct_pages.show(100, False)
+sys.stdout = old_stdout
+st.text(mystdout.getvalue())
+
+st.write("")
+st.write("##### Define Churn")
+st.write("The churn is defined as the event `Cancellation Confirmation`")
+
+cancellation_check_function = udf(lambda x: 1 if x == "Cancellation Confirmation" else 0, IntegerType())
+df = df.withColumn("churn", cancellation_check_function("page"))
+
+st.write(df)
