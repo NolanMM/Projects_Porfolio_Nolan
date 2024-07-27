@@ -1,11 +1,12 @@
+from Project.Project_7.RSI_Trading_Strategy import RSIAnalyzer
+import streamlit as st
 import pandas as pd
 import yfinance as yf
 import matplotlib.pyplot as plt
 pd.options.mode.chained_assignment = None
-import streamlit as st
-from Project.Project_7.RSI_Trading_Strategy import RSIAnalyzer
 
-st.set_page_config(page_title="RSI Trading Strategy and Backtest Implementation - NolanM", page_icon=":chart_with_upwards_trend:")
+st.set_page_config(page_title="RSI Trading Strategy and Backtest Implementation - NolanM",
+                   page_icon=":chart_with_upwards_trend:")
 css_file = "./styles/main.css"
 st.sidebar.header("Project NolanM")
 with open(css_file) as f:
@@ -80,9 +81,10 @@ st.markdown("""
 if "stock_data" not in st.session_state:
     st.session_state.stock_data = None
 st.subheader("Using Wikipedia to get the list of S&P 500 companies")
-tickers = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
+tickers = pd.read_html(
+    'https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
 tickers = tickers.Symbol.to_list()
-tickers = [i.replace('.','-') for i in tickers]
+tickers = [i.replace('.', '-') for i in tickers]
 
 code_wikipedia = """
     tickers = pd.read_html('https://en.wikipedia.org/wiki/List_of_S%26P_500_companies')[0]
@@ -116,14 +118,14 @@ if btn_prepare:
 
     Buying_dates, Selling_dates = stock.get_signals()
 
-    Profits = (stock_data.loc[Selling_dates].Open.values - stock_data.loc[Buying_dates].Open.values) / stock_data.loc[Buying_dates].Open.values
-
+    Profits = (stock_data.loc[Selling_dates].Open.values -
+               stock_data.loc[Buying_dates].Open.values) / stock_data.loc[Buying_dates].Open.values
 
     wins_time = [i for i in Profits if i > 0]
     win_rate = len(wins_time)/len(Profits)
 
     st.write("The win rate of the strategy is: ", win_rate)
-    #st.write("The profits of the strategy is: ", Profits)
+    # st.write("The profits of the strategy is: ", Profits)
     st.write("The average profits of the strategy is: ", Profits.mean())
     st.write("The total profits of the strategy is: ", Profits.sum())
     st.write("The total number of trades is: ", len(Profits))
@@ -140,13 +142,4 @@ if btn_prepare:
         st.subheader("The selling dates: ")
         for Date in Sell_date_formatted:
             st.write(Date)
-        #st.table("The selling dates: ", Sell_date_formatted)
-
-
-    
-
-
-
-
-
-
+        # st.table("The selling dates: ", Sell_date_formatted)

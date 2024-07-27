@@ -9,13 +9,15 @@ from pyspark.ml.stat import Correlation
 from pyspark.ml.feature import MinMaxScaler, VectorAssembler
 
 from pyspark.ml import Pipeline
-from pyspark.ml.classification import LogisticRegression, RandomForestClassifier, GBTClassifier 
+from pyspark.ml.classification import LogisticRegression, RandomForestClassifier, GBTClassifier
 from pyspark.ml.tuning import CrossValidator, ParamGridBuilder
 from pyspark.ml.evaluation import BinaryClassificationEvaluator
 from pyspark.mllib.evaluation import MulticlassMetrics
 from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
 from time import time
+from pyspark.sql import Window
+from pyspark.sql.functions import col, sum as Fsum
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -30,7 +32,6 @@ st.set_page_config(
     page_title="Sparkify using Spark Project - NolanM",
     page_icon=":shark:",
 )
-st.write("Spark Session created")
 
 css_file = "./styles/main.css"
 st.sidebar.header("Project NolanM")
@@ -96,6 +97,8 @@ df.printSchema()
 sys.stdout = old_stdout
 st.text(mystdout.getvalue())
 
+st.write(df)
+
 st.write("#### 2. Data Overview")
 
 st.write("The dataset contains {} rows.".format(df.count()))
@@ -120,7 +123,73 @@ st.write("")
 st.write("##### Define Churn")
 st.write("The churn is defined as the event `Cancellation Confirmation`")
 
-cancellation_check_function = udf(lambda x: 1 if x == "Cancellation Confirmation" else 0, IntegerType())
+cancellation_check_function = udf(
+    lambda x: 1 if x == "Cancellation Confirmation" else 0, IntegerType())
 df = df.withColumn("churn", cancellation_check_function("page"))
 
+code_churn = """
+    cancellation_check_function = udf(lambda x: 1 if x == "Cancellation Confirmation" else 0, IntegerType())
+    df = df.withColumn("churn", cancellation_check_function("page"))
+"""
+
+st.code(code_churn, language="python")
+st.write("#### 3. Df Add Churn Column")
 st.write(df)
+num_cancelled_users = df.filter(
+    df.churn == 1).select("userId").distinct().count()
+st.write(f"Number of users who churned: {num_cancelled_users}")
+
+st.markdown("---")
+st.write("#### 3.Exploratory Data Analysis")
+
+# Define the window bounds to use Fsum to count for the churn
+# windowval = Window.partitionBy("userId").rangeBetween(Window.unboundedPreceding, Window.unboundedFollowing)
+
+# df = df.withColumn("churn", Fsum(col("churn")).over(windowval))
+
+st.write("Missing values in the dataset")
+
+code_missing = """
+def missing_values(df, col):
+    for col in df.columns:
+        missing_count = df.filter((isnan(df[col])) | (df[col].isNull()) | (df[col] == "")).count()
+        if missing_count > 0:
+            print("{}: {}".format(col, missing_count))
+"""
+
+st.code(code_missing, language="python")
+
+st.write("The dataset contains the following missing values:")
+old_stdout = sys.stdout
+sys.stdout = mystdout = StringIO()
+for col in df.columns:
+    missing_count = df.filter((isnan(df[col])) | (
+        df[col].isNull()) | (df[col] == "")).count()
+    if missing_count > 0:
+        print("{}: {}".format(col, missing_count))
+
+sys.stdout = old_stdout
+st.text(mystdout.getvalue())
+
+st.write("##### Numerical Exploration")
+
+st.write("##### 3.1 Rate within female and males category")
+
+code_Rate_male_female = """
+    stat_df = spark.createDataFrame(df.dropDuplicates(['userId']).collect())
+    stat_df_GC = stat_df[['gender', 'churn']]
+    print('The avg churn rate of females is:', stat_df_GC.groupby(['gender']).mean().collect()[0][1]*100)
+    print('The avg churn rate of males is:', stat_df_GC.groupby(['gender']).mean().collect()[1][1]*100)
+"""
+
+st.code(code_Rate_male_female, language="python")
+
+stat_df = spark.createDataFrame(df.dropDuplicates(['userId']).collect())
+stat_df_GC = stat_df[['gender', 'churn']]
+avg_churn_rate_female = stat_df_GC.groupby(
+    ['gender']).mean().collect()[0][1]*100
+avg_churn_rate_male = stat_df_GC.groupby(['gender']).mean().collect()[1][1]*100
+
+st.write("The avg churn rate of females is {:.2f}%".format(
+    avg_churn_rate_female))
+st.write("The avg churn rate of male is {:.2f}%".format(avg_churn_rate_male))
