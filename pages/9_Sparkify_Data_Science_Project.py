@@ -1,3 +1,4 @@
+import sys
 from pyspark.ml.feature import StandardScaler
 from pyspark.sql import functions as F
 import matplotlib.pyplot as plt
@@ -7,6 +8,7 @@ import pandas as pd
 import datetime
 from pyspark.sql import SparkSession, Window
 from pyspark.sql.functions import *
+from pyspark.sql.functions import sum as Fsum
 from pyspark.sql.types import IntegerType
 from pyspark.sql.functions import udf
 from pyspark.ml.stat import Correlation
@@ -20,7 +22,9 @@ from scipy.sparse import csr_matrix
 from scipy.sparse.csgraph import connected_components
 from time import time
 from pyspark.sql import Window
-from pyspark.sql.functions import col, sum as Fsum
+from pyspark.ml.evaluation import MulticlassClassificationEvaluator
+from pyspark.sql.functions import lit
+# from pyspark.sql.functions import col, sum as Fsum
 
 import streamlit as st
 from dotenv import load_dotenv
@@ -166,11 +170,11 @@ st.code(code_missing, language="python")
 st.write("The dataset contains the following missing values:")
 old_stdout = sys.stdout
 sys.stdout = mystdout = StringIO()
-for col in df.columns:
-    missing_count = df.filter((isnan(df[col])) | (
-        df[col].isNull()) | (df[col] == "")).count()
+for col_ in df.columns:
+    missing_count = df.filter((isnan(df[col_])) | (
+        df[col_].isNull()) | (df[col_] == "")).count()
     if missing_count > 0:
-        print("{}: {}".format(col, missing_count))
+        print("{}: {}".format(col_, missing_count))
 
 sys.stdout = old_stdout
 st.text(mystdout.getvalue())
@@ -296,16 +300,16 @@ code_helper_function = """
 st.code(code_helper_function, language="python")
 
 
-def get_series(col, value, normalize):
+def get_series(col_, value, normalize):
     if normalize:
-        total_count = dfp[col].sum()
+        total_count = dfp[col_].sum()
         if total_count > 0:
-            series = dfp[dfp[col] == value][col].value_counts(
+            series = dfp[dfp[col_] == value][col_].value_counts(
                 normalize=True) * 100
         else:
             series = pd.Series()
     else:
-        series = dfp[dfp[col] == value][col].value_counts()
+        series = dfp[dfp[col_] == value][col_].value_counts()
     return series
 
 
@@ -325,17 +329,17 @@ data = data.withColumn('week_day', get_weekday(df.ts))
 dfp = data.toPandas()
 
 
-def draw_time(col, normalize=True, figsize=(16, 4), title=None, label_rotation=0):
+def draw_time(col_, normalize=True, figsize=(16, 4), title=None, label_rotation=0):
     # Normalize to fit with 2 group of users
-    df_time = pd.DataFrame({'Cancelled': get_series(col, 1, normalize),
-                            'Active users': get_series(col, 0, normalize)})
+    df_time = pd.DataFrame({'Cancelled': get_series(col_, 1, normalize),
+                            'Active users': get_series(col_, 0, normalize)})
 
     fig, ax = plt.subplots(figsize=figsize)
     df_time.plot(kind='bar', ax=ax)
     ax.set_ylabel('Percent of users')
 
     if title is None:
-        title = col
+        title = col_
 
     ax.set_xticklabels(ax.get_xticklabels(), rotation=label_rotation)
     ax.set_title(f'Percent of users took action per {title}')
@@ -351,42 +355,43 @@ st.write("#### 4. Feature Engineering")
 st.markdown("##### Independent Variables")
 st.markdown("##### 4.1 Time Since Registration")
 code_time_since_register = """
-    from pyspark.sql.functions import col
+```python
+from pyspark.sql.functions import col
 
-    feature_1 = data.select('userId', 'registration', 'ts') \
-        .withColumn('lifetime', (data.ts - data.registration)) \
-        .groupBy('userId') \
-        .agg({'lifetime': 'max'}) \
-        .withColumnRenamed('max(lifetime)', 'lifetime') \
-        .select('userId', (col('lifetime') / 1000 / 3600 / 24).alias('lifetime'))
-
-    feature_1.describe().show()
-"""
-
-st.code(code_time_since_register, language="python")
-old_stdout = sys.stdout
-sys.stdout = mystdout = StringIO()
 feature_1 = data.select('userId', 'registration', 'ts') \
     .withColumn('lifetime', (data.ts - data.registration)) \
     .groupBy('userId') \
     .agg({'lifetime': 'max'}) \
     .withColumnRenamed('max(lifetime)', 'lifetime') \
     .select('userId', (col('lifetime') / 1000 / 3600 / 24).alias('lifetime'))
+
 feature_1.describe().show()
-sys.stdout = old_stdout
-st.text(mystdout.getvalue())
+```
+"""
+
+st.markdown(code_time_since_register, unsafe_allow_html=True)
+feature_1 = data.select('userId', 'registration', 'ts') \
+    .withColumn('lifetime', (data.ts - data.registration)) \
+    .groupBy('userId') \
+    .agg({'lifetime': 'max'}) \
+    .withColumnRenamed('max(lifetime)', 'lifetime') \
+    .select('userId', (col('lifetime') / 1000 / 3600 / 24).alias('lifetime'))
+st.write(feature_1.describe())
+
 ############################################################################################
 st.markdown("##### 4.2 Total Songs Listened")
 code_total_song_listened = """
-    feature_2 = data \
-        .select('userID','song') \
-        .groupBy('userID') \
-        .count() \
-        .withColumnRenamed('count', 'total_songs')
-    feature_2.describe().show()
+```python
+feature_2 = data \
+    .select('userID','song') \
+    .groupBy('userID') \
+    .count() \
+    .withColumnRenamed('count', 'total_songs')
+feature_2.describe().show()
+```
 """
 
-st.code(code_total_song_listened, language="python")
+st.markdown(code_total_song_listened, unsafe_allow_html=True)
 old_stdout = sys.stdout
 sys.stdout = mystdout = StringIO()
 feature_2 = data \
@@ -400,16 +405,18 @@ st.text(mystdout.getvalue())
 ############################################################################################
 st.markdown("##### 4.3 Like of user")
 code_like_of_users = """
-    feature_3 = data \
-        .select('userID','page') \
-        .where(data.page == 'Thumbs Up') \
-        .groupBy('userID') \
-        .count() \
-        .withColumnRenamed('count', 'num_thumb_up')
-    feature_3.describe().show()
+```python
+feature_3 = data \
+    .select('userID','page') \
+    .where(data.page == 'Thumbs Up') \
+    .groupBy('userID') \
+    .count() \
+    .withColumnRenamed('count', 'num_thumb_up')
+feature_3.describe().show()
+```
 """
 
-st.code(code_like_of_users, language="python")
+st.markdown(code_like_of_users, unsafe_allow_html=True)
 old_stdout = sys.stdout
 sys.stdout = mystdout = StringIO()
 feature_3 = data \
@@ -424,16 +431,18 @@ st.text(mystdout.getvalue())
 ############################################################################################
 st.markdown("##### 4.4 Dislike of user: ( Check for Thumbs Down Page)")
 code_dislike_of_users = """
-    feature_4 = data \
-        .select('userID','page') \
-        .where(data.page == 'Thumbs Down') \
-        .groupBy('userID') \
-        .count() \
-        .withColumnRenamed('count', 'num_thumb_down')
-    feature_4.describe().show()
+```python
+feature_4 = data \
+    .select('userID','page') \
+    .where(data.page == 'Thumbs Down') \
+    .groupBy('userID') \
+    .count() \
+    .withColumnRenamed('count', 'num_thumb_down')
+feature_4.describe().show()
+```
 """
 
-st.code(code_dislike_of_users, language="python")
+st.markdown(code_dislike_of_users, unsafe_allow_html=True)
 old_stdout = sys.stdout
 sys.stdout = mystdout = StringIO()
 feature_4 = data \
@@ -448,15 +457,17 @@ st.text(mystdout.getvalue())
 ##############################################################################################
 st.markdown("##### 4.5 Playlist length: (Check for the Add to Playlist Page)")
 code_playlist_length = """
-    feature_5 = data \
-        .select('userID','page') \
-        .where(data.page == 'Add to Playlist') \
-        .groupBy('userID')\
-        .count() \
-        .withColumnRenamed('count', 'add_to_playlist')
-    feature_5.describe().show()
+```python
+feature_5 = data \
+    .select('userID','page') \
+    .where(data.page == 'Add to Playlist') \
+    .groupBy('userID')\
+    .count() \
+    .withColumnRenamed('count', 'add_to_playlist')
+feature_5.describe().show()
+```
 """
-st.code(code_playlist_length, language="python")
+st.markdown(code_playlist_length, unsafe_allow_html=True)
 old_stdout = sys.stdout
 sys.stdout = mystdout = StringIO()
 feature_5 = data \
@@ -471,15 +482,17 @@ st.text(mystdout.getvalue())
 ###############################################################################################
 st.markdown("##### 4.6 Referring friends: (Check for the Add Friend Page)")
 code_referring_friend = """
-    feature_6 = data \
-        .select('userID','page') \
-        .where(data.page == 'Add Friend') \
-        .groupBy('userID') \
-        .count() \
-        .withColumnRenamed('count', 'add_friend')
-    feature_6.describe().show()
+```python
+feature_6 = data \
+    .select('userID','page') \
+    .where(data.page == 'Add Friend') \
+    .groupBy('userID') \
+    .count() \
+    .withColumnRenamed('count', 'add_friend')
+feature_6.describe().show()
+```
 """
-st.code(code_referring_friend, language="python")
+st.markdown(code_referring_friend, unsafe_allow_html=True)
 old_stdout = sys.stdout
 sys.stdout = mystdout = StringIO()
 feature_6 = data \
@@ -495,14 +508,16 @@ st.text(mystdout.getvalue())
 st.markdown(
     "##### 4.7 Listening Longevity: ( Check for the total listen time each user)")
 code_listening_longevity = """
-    feature_7 = data \
-        .select('userID','length') \
-        .groupBy('userID') \
-        .sum() \
-        .withColumnRenamed('sum(length)', 'listen_time')
-    feature_7.describe().show()
+```python
+feature_7 = data \
+    .select('userID','length') \
+    .groupBy('userID') \
+    .sum() \
+    .withColumnRenamed('sum(length)', 'listen_time')
+feature_7.describe().show()
+```
 """
-st.code(code_listening_longevity, language="python")
+st.markdown(code_listening_longevity, unsafe_allow_html=True)
 old_stdout = sys.stdout
 sys.stdout = mystdout = StringIO()
 feature_7 = data \
@@ -518,14 +533,16 @@ st.markdown(
     "##### 4.8 Songs per Session")
 st.markdown("###### Avange song played per Sessions Count the number user hit NextSong group by sessionId, userId and take avarange of the number of song be played corresponding to that SessionID")
 code_song_per_session = """
-    feature_8 = data.where('page == "NextSong"') \
-        .groupby(['userId', 'sessionId']) \
-        .count() \
-        .groupby(['userId']) \
-        .agg({'count':'avg'}) \
-        .withColumnRenamed('avg(count)', 'avg_songs_played')
+```python
+feature_8 = data.where('page == "NextSong"') \
+    .groupby(['userId', 'sessionId']) \
+    .count() \
+    .groupby(['userId']) \
+    .agg({'count':'avg'}) \
+    .withColumnRenamed('avg(count)', 'avg_songs_played')
+```
 """
-st.code(code_song_per_session, language="python")
+st.markdown(code_song_per_session, unsafe_allow_html=True)
 old_stdout = sys.stdout
 sys.stdout = mystdout = StringIO()
 feature_8 = data.where('page == "NextSong"') \
@@ -541,13 +558,15 @@ st.text(mystdout.getvalue())
 st.markdown(
     "##### 4.9 Gender: (Replace M and F by 0 and 1)")
 code_gender_numeric = """
-    feature_9 = data \
-        .select("userId", "gender") \
-        .dropDuplicates() \
-        .replace(['M', 'F'], ['0', '1'], 'gender') \
-        .select('userId', col('gender').cast('int'))
+```python
+feature_9 = data \
+    .select("userId", "gender") \
+    .dropDuplicates() \
+    .replace(['M', 'F'], ['0', '1'], 'gender') \
+    .select('userId', col('gender').cast('int'))
+```
 """
-st.code(code_gender_numeric, language="python")
+st.markdown(code_gender_numeric, unsafe_allow_html=True)
 old_stdout = sys.stdout
 sys.stdout = mystdout = StringIO()
 feature_9 = data \
@@ -588,17 +607,19 @@ st.markdown("##### Independent Variables")
 st.markdown("""
     - Create a dependent variable from churn column
     - Create numeric categories of churn label as 1 = churn and 0 = no churn.
-""")
+""", unsafe_allow_html=True)
 code_dependent_variable = """
-    feature_10 = data \
-        .filter(data.page=="NextSong") \
-        .select("userId", "artist") \
-        .dropDuplicates() \
-        .groupby("userId") \
-        .count() \
-        .withColumnRenamed("count", "artist_count")
+```python
+feature_10 = data \
+    .filter(data.page=="NextSong") \
+    .select("userId", "artist") \
+    .dropDuplicates() \
+    .groupby("userId") \
+    .count() \
+    .withColumnRenamed("count", "artist_count")
+```
 """
-st.code(code_dependent_variable, language="python")
+st.markdown(code_dependent_variable, unsafe_allow_html=True)
 old_stdout = sys.stdout
 sys.stdout = mystdout = StringIO()
 label_churn = data \
@@ -613,20 +634,22 @@ st.markdown("""
     - Joint all the feature table and label table into dataframe with outer join based on userID and fillna with 0
 """)
 code_construct_dataset = """
-    data = feature_1.join(feature_2,'userID','outer') \
-        .join(feature_3,'userID','outer') \
-        .join(feature_4,'userID','outer') \
-        .join(feature_5,'userID','outer') \
-        .join(feature_6,'userID','outer') \
-        .join(feature_7,'userID','outer') \
-        .join(feature_8,'userID','outer') \
-        .join(feature_9,'userID','outer') \
-        .join(feature_10,'userID','outer') \
-        .join(label_churn,'userID','outer') \
-        .drop('userID') \
-        .fillna(0)
+```python
+data = feature_1.join(feature_2,'userID','outer') \
+    .join(feature_3,'userID','outer') \
+    .join(feature_4,'userID','outer') \
+    .join(feature_5,'userID','outer') \
+    .join(feature_6,'userID','outer') \
+    .join(feature_7,'userID','outer') \
+    .join(feature_8,'userID','outer') \
+    .join(feature_9,'userID','outer') \
+    .join(feature_10,'userID','outer') \
+    .join(label_churn,'userID','outer') \
+    .drop('userID') \
+    .fillna(0)
+```
 """
-st.code(code_construct_dataset, language="python")
+st.markdown(code_construct_dataset, unsafe_allow_html=True)
 data = feature_1.join(feature_2, 'userID', 'outer') \
     .join(feature_3, 'userID', 'outer') \
     .join(feature_4, 'userID', 'outer') \
@@ -643,7 +666,7 @@ st.write(data)
 ############################################################################################
 st.markdown("---")
 st.write("#### 5. Modeling Engineering")
-st.markdown(""""
+st.markdown("""
     Split the full dataset into train, test, and validation sets. 
     Test out several of the machine learning methods you learned. 
     Evaluate the accuracy of the various models, tuning parameters as necessary. 
@@ -651,7 +674,7 @@ st.markdown(""""
     Since the churned users are a fairly small subset, I suggest using F1 score as the metric to optimize.
 """)
 st.markdown("##### 5.1 Normalizing")
-st.markdown(""""
+st.markdown("""
 - Turn to normalization of our features that will assurance any independent variable alone or few of them would not influence the dependent variable 
     to an extent where other features become redundant.
 """)
@@ -669,7 +692,7 @@ data = assembler.transform(data)
 st.write(data)
 ############################################################################################
 st.markdown("##### 5.2 Scaling")
-st.markdown(""""
+st.markdown("""
 - Substract the mean of each feature from every value of that feature and then divide it by standard deviation of each feature using withStd = True
 """)
 
@@ -687,11 +710,11 @@ data = scalerModel.transform(data)
 st.write(data)
 ############################################################################################
 st.markdown("##### 5.3 Train - Validation — Test Dataset Split")
-st.markdown(""""
-    - Take 70% for TrainData
-    - Take 18% for Validation
-    - Take 12% for Test
-    **Note**:: The seed=42 parameter of randomSplit() ensures that same pseudorandom number is generated every-time by preserving the copy of first time generated pseudo number.
+st.markdown("""
+- Take 70% for TrainData
+- Take 18% for Validation
+- Take 12% for Test
+**Note**:: The seed=42 parameter of randomSplit() ensures that same pseudorandom number is generated every-time by preserving the copy of first time generated pseudo number.
 """, unsafe_allow_html=True)
 
 code_scaling = """
@@ -702,7 +725,287 @@ train, rest = data.randomSplit([0.7, 0.3], seed=42)
 validation, test = rest.randomSplit([0.6, 0.4], seed=42)
 st.write("Train Data")
 st.write(train)
-st.write("Validation Data")
-st.write(validation)
-st.write("Test Data")
-st.write(test)
+
+############################################################################################
+st.markdown("---")
+st.markdown("#### 6. Model Model")
+st.markdown("##### 6.1 Base Model")
+st.markdown("""
+##### using MulticlassClassificationEvaluator to mesures how 0 label and 1 label are performing
+""")
+
+code_base_model = """
+```python
+# Mesure label 0
+from pyspark.ml.evaluation import MulticlassClassificationEvaluator
+from pyspark.sql.functions import lit
+
+# Take the test dataset and create prediction column and filled with all 0 to test with the evaluator
+test_set_base_0 = test.withColumn('prediction', lit(0.0))
+evaluator = MulticlassClassificationEvaluator(predictionCol="prediction")
+
+# Evaluate the dataset based all 0 for accuracy and f1 score
+print('Accuracy: {}'.format(evaluator.evaluate(test_set_base_0, {evaluator.metricName: "accuracy"})))
+print('F1 Score:{}'.format(evaluator.evaluate(test_set_base_0, {evaluator.metricName: "f1"})))
+
+# Mesure label 1
+# Take the test dataset and create prediction column and filled with all 0 to test with the evaluator
+test_set_base_1 = test.withColumn('prediction', lit(1.0))
+evaluator = MulticlassClassificationEvaluator(predictionCol="prediction")
+
+# Evaluate the dataset based all 1 for accuracy and f1 score
+print('Accuracy: {}'.format(evaluator.evaluate(test_set_base_1, {evaluator.metricName: "accuracy"})))
+print('F1 Score:{}'.format(evaluator.evaluate(test_set_base_1, {evaluator.metricName: "f1"})))
+```
+"""
+st.markdown(code_base_model, unsafe_allow_html=True)
+
+# Take the test dataset and create prediction column and filled with all 0 to test with the evaluator
+test_set_base_0 = test.withColumn('prediction', lit(0.0))
+evaluator = MulticlassClassificationEvaluator(predictionCol="prediction")
+
+# Evaluate the dataset based all 0 for accuracy and f1 score
+st.write('Accuracy Mesure label 0: {}'.format(evaluator.evaluate(
+    test_set_base_0, {evaluator.metricName: "accuracy"})))
+st.write('F1 Score Mesure label 0: {}'.format(evaluator.evaluate(
+    test_set_base_0, {evaluator.metricName: "f1"})))
+
+# Mesure label 1
+# Take the test dataset and create prediction column and filled with all 0 to test with the evaluator
+test_set_base_1 = test.withColumn('prediction', lit(1.0))
+evaluator_1 = MulticlassClassificationEvaluator(predictionCol="prediction")
+
+# Evaluate the dataset based all 1 for accuracy and f1 score
+st.write('Accuracy Mesure label 1: {}'.format(evaluator_1.evaluate(
+    test_set_base_1, {evaluator_1.metricName: "accuracy"})))
+st.write('F1 Score Mesure label 1:{}'.format(evaluator_1.evaluate(
+    test_set_base_1, {evaluator_1.metricName: "f1"})))
+
+
+st.markdown("##### 6.2 Logistic Regression Model")
+st.markdown("""
+##### Using Logistic Regression Model measure the performance
+""")
+
+code_logistic_model = """
+```python
+# initialize classifier
+lr = LogisticRegression(maxIter=10)
+
+# set evaluator
+f1_evaluator = MulticlassClassificationEvaluator(metricName='f1')   # Based on f1 score
+
+# build empty paramGrid
+paramGrid = ParamGridBuilder().build()
+
+# data will be split into three folds during cross-validation (numFolds=3)
+crossval_lr = CrossValidator(estimator=lr, evaluator=f1_evaluator, estimatorParamMaps=paramGrid, numFolds=3) 
+
+# Fit data to crossval_lr
+FittedModel_lr = crossval_lr.fit(train)
+
+# Take the List of result metrics 
+FittedModel_lr.avgMetrics
+
+# Transform the data and collect the result
+results_lr = FittedModel_lr.transform(validation)
+
+# Evaluate the data
+evaluator = MulticlassClassificationEvaluator(predictionCol="prediction")
+print('Logistic Regression Metrics Result')
+print('Accuracy: {}'.format(evaluator.evaluate(results_lr, {evaluator.metricName: "accuracy"})))
+print('F1 Score:{}'.format(evaluator.evaluate(results_lr, {evaluator.metricName: "f1"})))
+```
+"""
+st.markdown(code_logistic_model, unsafe_allow_html=True)
+
+# initialize classifier
+lr = LogisticRegression(maxIter=10)
+
+# set evaluator
+f1_evaluator = MulticlassClassificationEvaluator(
+    metricName='f1')   # Based on f1 score
+
+# build empty paramGrid
+paramGrid = ParamGridBuilder().build()
+# data will be split into three folds during cross-validation (numFolds=3)
+crossval_lr = CrossValidator(
+    estimator=lr, evaluator=f1_evaluator, estimatorParamMaps=paramGrid, numFolds=3)
+
+# Fit data to crossval_lr
+FittedModel_lr = crossval_lr.fit(train)
+
+# Take the List of result metrics
+FittedModel_lr.avgMetrics
+
+# Transform the data and collect the result
+results_lr = FittedModel_lr.transform(validation)
+
+# Evaluate the data
+evaluator_logistic = MulticlassClassificationEvaluator(
+    predictionCol="prediction")
+
+st.write('Logistic Regression Metrics Result')
+st.write('Accuracy Logistic Regression Metrics: {}'.format(evaluator_logistic.evaluate(
+    results_lr, {evaluator_logistic.metricName: "accuracy"})))
+st.write('F1 Score Logistic Regression Metrics:{}'.format(evaluator_logistic.evaluate(
+    results_lr, {evaluator_logistic.metricName: "f1"})))
+
+############################################################################################
+st.markdown("##### 6.3 Gradient Boosted Tree")
+st.markdown("""
+##### Using Gradient Boosted Tree measure the performance
+""")
+
+code_gradient_model = """
+```python
+# Initialize classifier
+GradBoostTree = GBTClassifier(maxIter=5,seed=42)
+
+# Set evaluator (f1 score)
+f1_evaluator = MulticlassClassificationEvaluator(metricName='f1') 
+
+# Build paramGrid
+paramGrid = ParamGridBuilder().build()
+crossval_GradBoostTree = CrossValidator(estimator=GradBoostTree, estimatorParamMaps=paramGrid, evaluator=f1_evaluator, numFolds=5)
+
+# Fit data to crossval_GradBoostTree
+FittedModel_GradBoostTree = crossval_GradBoostTree.fit(train)
+
+# Take the List of result metrics 
+FittedModel_GradBoostTree.avgMetrics
+
+# Transform the data and collect the result
+results_GradBoostTree = FittedModel_GradBoostTree.transform(validation)
+
+# Evaluate the data
+evaluator = MulticlassClassificationEvaluator(predictionCol="prediction")
+
+print('Gradient Boosted Trees Metrics:')
+print('Accuracy: {}'.format(evaluator.evaluate(results_GradBoostTree, {evaluator.metricName: "accuracy"})))
+print('F1 Score:{}'.format(evaluator.evaluate(results_GradBoostTree, {evaluator.metricName: "f1"})))
+```
+"""
+st.markdown(code_gradient_model, unsafe_allow_html=True)
+
+# initialize classifier
+GradBoostTree = GBTClassifier(maxIter=5, seed=42)
+# set evaluator
+f1_evaluator = MulticlassClassificationEvaluator(metricName='f1')  # f1 score
+# build paramGrid
+paramGrid = ParamGridBuilder().build()
+crossval_GradBoostTree = CrossValidator(
+    estimator=GradBoostTree, estimatorParamMaps=paramGrid, evaluator=f1_evaluator, numFolds=5)
+
+# Fit data to crossval_GradBoostTree
+FittedModel_GradBoostTree = crossval_GradBoostTree.fit(train)
+
+# Take the List of result metrics
+FittedModel_GradBoostTree.avgMetrics
+
+# Transform the data and collect the result
+results_GradBoostTree = FittedModel_GradBoostTree.transform(validation)
+
+# Evaluate the data
+evaluator_gradient = MulticlassClassificationEvaluator(
+    predictionCol="prediction")
+
+st.write('Gradient Boosted Trees Metrics:')
+st.write('Accuracy Gradient Boosted Trees: {}'.format(evaluator_gradient.evaluate(
+    results_GradBoostTree, {evaluator_gradient.metricName: "accuracy"})))
+st.write('F1 Score Gradient Boosted Trees:{}'.format(evaluator_gradient.evaluate(
+    results_GradBoostTree, {evaluator_gradient.metricName: "f1"})))
+
+############################################################################################
+st.markdown("---")
+st.markdown("#### 7. Test Deployment & Hyperparameter Tuning")
+st.markdown("""
+##### using MulticlassClassificationEvaluator to mesures how 0 label and 1 label are performing
+""")
+
+code_hypertuning_model = """
+```python
+f1_evaluator = MulticlassClassificationEvaluator(metricName='f1')
+lr = LogisticRegression()
+
+paramGrid = ParamGridBuilder().addGrid(lr.maxIter, [10,12]).addGrid(lr.regParam, [0,0.1]).addGrid(lr.elasticNetParam, [0.001,0.01]).build()
+
+lr_cv = CrossValidator(estimator=lr, estimatorParamMaps=paramGrid,evaluator=f1_evaluator, numFolds=3)
+
+lrModel = lr_cv.fit(train)
+bestModel = lrModel.bestModel
+results_final = bestModel.transform(test)
+evaluator = MulticlassClassificationEvaluator(predictionCol="prediction")
+print('Test set metrics:') 
+print('Accuracy: {}'.format(evaluator.evaluate(results_final, {evaluator.metricName: "accuracy"})))
+print('F-1 Score:{}'.format(evaluator.evaluate(results_final, {evaluator.metricName: "f1"})))
+```
+"""
+st.markdown(code_hypertuning_model, unsafe_allow_html=True)
+
+f1_evaluator = MulticlassClassificationEvaluator(metricName='f1')
+lr = LogisticRegression()
+
+paramGrid = ParamGridBuilder().addGrid(lr.maxIter, [10, 12]).addGrid(
+    lr.regParam, [0, 0.1]).addGrid(lr.elasticNetParam, [0.001, 0.01]).build()
+
+lr_cv = CrossValidator(
+    estimator=lr, estimatorParamMaps=paramGrid, evaluator=f1_evaluator, numFolds=3)
+
+lrModel = lr_cv.fit(train)
+bestModel = lrModel.bestModel
+results_final = bestModel.transform(test)
+evaluator = MulticlassClassificationEvaluator(predictionCol="prediction")
+st.write('Test set metrics:')
+st.write('Accuracy: {}'.format(evaluator.evaluate(
+    results_final, {evaluator.metricName: "accuracy"})))
+st.write('F-1 Score:{}'.format(evaluator.evaluate(results_final,
+         {evaluator.metricName: "f1"})))
+
+############################################################################################
+st.markdown("---")
+st.markdown("#### 8. Calculate Feature Importances")
+st.markdown("""
+- Calculate the feature importances of the best model
+""")
+code_feature_importances = """
+```python
+def calculate_feature_importances(coefficients, feature_names):
+    feat_imp = [0 - x if x < 0 else x for x in coefficients]
+    feature_importances = list(zip(feature_names, feat_imp))
+    return feat_imp, feature_importances
+
+feat_imp, feature_importances = calculate_feature_importances(bestModel.coefficients, cols)
+
+# Plotting the vertical bar chart
+plt.bar(cols, feat_imp, align='center')
+plt.xlabel('Features')
+plt.ylabel('Importance Score')
+plt.title('Feature Importances')
+
+plt.xticks(rotation=45) # Rotate to Vertical bar chart
+plt.tight_layout()
+plt.show()
+```
+"""
+st.markdown(code_feature_importances, unsafe_allow_html=True)
+
+
+def calculate_feature_importances(coefficients, feature_names):
+    feat_imp = [0 - x if x < 0 else x for x in coefficients]
+    feature_importances = list(zip(feature_names, feat_imp))
+    fig, ax = plt.subplots()
+    ax.bar(feature_names, feat_imp, align='center')
+    ax.set_xlabel('Features')
+    ax.set_ylabel('Importance Score')
+    ax.set_title('Feature Importances')
+    ax.set_xticks(range(len(feature_names)))
+    ax.set_xticklabels(feature_names, rotation=45, ha='right')
+    plt.tight_layout()
+    # Display the plot
+    st.pyplot(fig)
+    return feat_imp, feature_importances
+
+
+feat_imp, feature_importances = calculate_feature_importances(
+    bestModel.coefficients, cols)
