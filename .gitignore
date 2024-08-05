@@ -3,3 +3,6 @@ venv
 __pycache__
 /Project/Project_4/__pycache__
 /data/Project_9/mini_sparkify_event_data.json
+top_5.p
+top_10.p
+top_20.p
