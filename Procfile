@@ -1,1 +1,0 @@
-web: bash -c "./setup.sh && streamlit run 1_HomePage.py --server.port=$PORT"

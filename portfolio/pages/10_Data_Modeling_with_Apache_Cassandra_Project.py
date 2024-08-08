@@ -189,7 +189,7 @@ session = cluster.connect()
 """, unsafe_allow_html=True)
 
 # Create a Cluster
-cluster = Cluster(['127.0.0.1'])
+cluster = Cluster(['172.19.0.3'])
 session = cluster.connect()
 st.session_state.Disconnect = False
 if "Disconnect" in st.session_state and st.session_state.Disconnect == False:

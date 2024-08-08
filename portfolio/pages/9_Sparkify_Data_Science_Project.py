@@ -29,6 +29,9 @@ from pyspark.sql.functions import lit
 import streamlit as st
 from dotenv import load_dotenv
 from io import StringIO
+# spark = SparkSession.builder \
+#     .appName("Sparkify_Project_Spark_Local") \
+#     .getOrCreate()
 spark = SparkSession.builder \
     .appName("Sparkify_Project_Spark_Local") \
     .getOrCreate()

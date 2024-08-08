@@ -1,0 +1,31 @@
+version: '3'
+
+networks:
+    datapipeline:
+        driver: bridge
+        ipam:
+            driver: default
+            config:
+                - subnet: "172.19.0.0/16"
+
+services:  
+  cassandra-porfolio:
+    image: cassandra:4
+    container_name: cassandra-porfolio
+    hostname: cassandra
+    ports:
+      - '9042:9042'
+    networks:
+      datapipeline:
+        ipv4_address: 172.19.0.3
+  
+  web-porfolio:
+    build:
+      context: ./portfolio
+      dockerfile: Dockerfile
+    container_name: web-porfolio
+    ports:
+      - '8081:8081'
+    networks:
+      datapipeline:
+        ipv4_address: 172.19.0.4
